@@ -20,7 +20,7 @@ class LoopController:
         while not context.goal_reached and context.loop_count < self.max_loops:
             observation = await self.observer.inspect(context)
             self._apply_observation(context, observation)
-            self.emit(EventType.OBSERVATION, "Environment observed")
+            self.emit(EventType.OBSERVATION, "녹화 페이지 상태를 확인했습니다.")
             plan = self.planner.decide(context, observation)
             self.emit(EventType.PLAN_SELECTED, plan.reason, strategy=plan.strategy_name)
             if plan.stop:
@@ -43,18 +43,18 @@ class LoopController:
             if evaluation.goal_reached:
                 context.goal_reached = True
                 context.completed_files.extend(evaluation.verified_files)
-                self.emit(EventType.GOAL_REACHED, evaluation.reason or "Goal reached", strategy=result.strategy)
+                self.emit(EventType.GOAL_REACHED, evaluation.reason or "다운로드를 완료했습니다.", strategy=result.strategy)
                 break
             context.last_error_code = evaluation.error_category
             context.last_error_message = evaluation.reason
             context.retry_counts[result.strategy] = context.retry_counts.get(result.strategy, 0) + 1
-            self.emit(EventType.ACTION_FAILED, evaluation.reason or "Action failed", strategy=result.strategy, error_code=evaluation.error_category)
+            self.emit(EventType.ACTION_FAILED, evaluation.reason or "다운로드 작업에 실패했습니다.", strategy=result.strategy, error_code=evaluation.error_category)
             rule = retry_rule(evaluation.error_category)
             if evaluation.retryable and rule.base_delay_seconds:
                 await asyncio.sleep(rule.base_delay_seconds * (2 ** (context.retry_counts[result.strategy] - 1)))
         if not context.goal_reached and context.loop_count >= self.max_loops:
             context.terminal_reason = "max_loops_reached"
-            self.emit(EventType.TERMINATED, "Maximum loop count reached")
+            self.emit(EventType.TERMINATED, "최대 재시도 횟수에 도달했습니다.")
         return context
 
     @staticmethod
@@ -69,4 +69,3 @@ class LoopController:
         context.browser_session_available = observation.browser_session_available
         if observation.candidate_files:
             context.available_files = observation.candidate_files
-

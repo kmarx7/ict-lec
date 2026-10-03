@@ -21,7 +21,6 @@ from src.library.repository import RecordingRepository
 from src.sources.zoom.access import SELECTORS, first_visible
 from src.sources.zoom.browser import ZoomBrowserSession
 from src.sources.zoom.parser import ZoomPageParser
-from src.strategies.local_import import LocalImportStrategy
 from src.strategies.zoom_browser import ZoomBrowserDownloadStrategy
 from src.ui.dialogs.login_dialog import LoginDialog
 from src.ui.dialogs.passcode_dialog import PasscodeDialog
@@ -36,7 +35,6 @@ class ApplicationCoordinator:
         self.browser = ZoomBrowserSession()
         self.page_parser = ZoomPageParser()
         window.workspace.analyze_requested.connect(self.analyze)
-        window.workspace.import_requested.connect(self.import_file)
         window.workspace.cancel_requested.connect(self.cancel)
 
     @asyncSlot(str)
@@ -44,28 +42,18 @@ class ApplicationCoordinator:
         context = AgentContext(original_url=url)
         await self._run(context)
 
-    @asyncSlot(str)
-    async def import_file(self, path: str) -> None:
-        context = AgentContext(original_url="local://import", source_type="local", local_import_path=Path(path))
-        await self._run(context)
-
     def cancel(self) -> None:
         if self.active_context:
             self.active_context.cancelled = True
-            self.window.workspace.show_error("Cancellation requested. Stopping safely…")
+            self.window.workspace.show_error("취소 요청을 처리하고 있습니다…")
 
     async def _run(self, context: AgentContext) -> None:
         self.active_context = context
-        self.window.workspace.begin(
-            "Importing and verifying local file…"
-            if context.source_type == "local"
-            else "Opening the authorized Zoom recording page…"
-        )
-        title = context.local_import_path.stem if context.local_import_path else "Zoom_Recording"
+        self.window.workspace.begin("Zoom 녹화 페이지를 열고 다운로드 권한을 확인하는 중…")
+        title = "Zoom_녹화"
         destination = archive_directory(self.config.download_dir, title, date.today())
-        observer = BasicObserver(page_probe=None if context.source_type == "local" else self._probe_page)
+        observer = BasicObserver(page_probe=self._probe_page)
         strategies = {
-            "local_import": LocalImportStrategy(destination),
             "zoom_browser": ZoomBrowserDownloadStrategy(self._open_page, destination),
         }
         self.controller = LoopController(
@@ -82,12 +70,16 @@ class ApplicationCoordinator:
             if result.goal_reached:
                 self._archive(result, destination, title)
                 self.window.workspace.refresh_library()
-                self.window.workspace.finish("Verified and archived successfully.")
+                self.window.workspace.finish(
+                    "다운로드와 파일 검증을 완료했습니다.",
+                    destination,
+                    result.completed_files,
+                )
             else:
                 reason = (
                     result.terminal_reason
                     or result.last_error_message
-                    or "No authorized download path is available."
+                    or "허용된 다운로드 경로를 찾을 수 없습니다."
                 )
                 self.window.workspace.show_error(reason)
         except Exception as exc:
@@ -95,12 +87,12 @@ class ApplicationCoordinator:
             self.window.workspace.add_event(
                 AgentEvent(
                     event_type=EventType.ACTION_FAILED,
-                    message=f"The acquisition could not start ({error_name}).",
+                    message=f"다운로드를 시작하지 못했습니다. ({error_name})",
                     error_code="UNKNOWN_ERROR",
                 )
             )
             self.window.workspace.show_error(
-                f"Could not continue because {error_name} occurred. Check Playwright/browser setup."
+                f"{error_name} 오류로 계속할 수 없습니다. 브라우저 설치 상태를 확인해 주세요."
             )
         finally:
             self.active_context = None
@@ -159,6 +151,7 @@ class ApplicationCoordinator:
 
 def main() -> int:
     app = QApplication.instance() or QApplication(sys.argv)
+    app.setApplicationDisplayName("강의 아카이브")
     config = AppConfig()
     database = Database(config.database_path)
     database.initialize()

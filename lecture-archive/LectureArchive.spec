@@ -36,9 +36,8 @@ app = BUNDLE(
     name="Lecture Archive.app",
     bundle_identifier="com.lecturearchive.desktop",
     info_plist={
-        "CFBundleDisplayName": "Lecture Archive",
+        "CFBundleDisplayName": "강의 아카이브",
         "CFBundleShortVersionString": "0.1.0",
         "NSHighResolutionCapable": True,
     },
 )
-

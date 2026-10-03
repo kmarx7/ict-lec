@@ -8,11 +8,10 @@ from src.ui.workspace_page import WorkspacePage
 class MainWindow(QMainWindow):
     def __init__(self, repository=None) -> None:
         super().__init__()
-        self.setWindowTitle("Lecture Archive")
+        self.setWindowTitle("강의 아카이브")
         self.resize(1120, 760)
         self.setMinimumSize(860, 600)
         self.workspace = WorkspacePage(repository)
         self.setCentralWidget(self.workspace)
         self.setFont(QFont("SF Pro Text", 13))
         self.setStyleSheet(APP_STYLESHEET)
-

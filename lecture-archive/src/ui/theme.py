@@ -124,6 +124,20 @@ QLabel#statusBadge {
 QLabel#statusBadge[state="running"] { color: #1F5FAE; background: #EAF2FE; border-color: #C9DDF9; }
 QLabel#statusBadge[state="error"] { color: #A33A2B; background: #FCEDEA; border-color: #F2CFC7; }
 QLabel#statusBadge[state="success"] { color: #17653A; background: #E8F6EE; border-color: #CBE9D7; }
+QLabel#downloadStatus {
+    color: #202228;
+    font-size: 16px;
+    font-weight: 700;
+}
+QLabel#downloadPercent {
+    color: #1F6FEB;
+    font-size: 18px;
+    font-weight: 700;
+}
+QLabel#downloadMetric {
+    color: #656A74;
+    font-size: 12px;
+}
 QSplitter::handle { background: transparent; width: 12px; }
 QListWidget#timeline {
     background: #FFFFFF;

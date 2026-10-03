@@ -11,7 +11,7 @@ class GoalEvaluator:
         if not result.success:
             return EvaluationResult(success=False, retryable=result.retryable, error_category=result.error_code, reason=result.message)
         if not result.downloaded_files:
-            return EvaluationResult(success=False, error_category="INVALID_MEDIA", reason="No files were produced")
+            return EvaluationResult(success=False, error_category="INVALID_MEDIA", reason="다운로드된 파일이 없습니다.")
         verified = []
         for path in result.downloaded_files:
             report = await self.verifier.verify(path)
@@ -22,8 +22,7 @@ class GoalEvaluator:
                 final = path.with_suffix("")
                 path.replace(final)
             verified.append(final)
-        return EvaluationResult(success=True, goal_reached=True, reason="All downloaded files verified", verified_files=verified)
+        return EvaluationResult(success=True, goal_reached=True, reason="다운로드한 파일을 모두 검증했습니다.", verified_files=verified)
 
     def is_complete(self, context: AgentContext) -> bool:
         return context.goal_reached and bool(context.completed_files) and all(path.is_file() for path in context.completed_files)
-

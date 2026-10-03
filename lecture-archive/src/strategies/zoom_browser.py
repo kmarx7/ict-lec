@@ -19,7 +19,7 @@ class ZoomBrowserDownloadStrategy(DownloadStrategy):
         page = await self.page_provider(context.canonical_url or context.original_url)
         button = await first_visible(page, SELECTORS["download_button"])
         if button is None or await button.is_disabled():
-            return ExecutionResult(success=False, strategy=self.name, error_code="DOWNLOAD_NOT_ALLOWED", message="Official Download control is unavailable")
+            return ExecutionResult(success=False, strategy=self.name, error_code="DOWNLOAD_NOT_ALLOWED", message="Zoom의 공식 다운로드 버튼을 사용할 수 없습니다.")
         self.destination_dir.mkdir(parents=True, exist_ok=True)
         async with page.expect_download() as info:
             await button.click()
@@ -27,4 +27,3 @@ class ZoomBrowserDownloadStrategy(DownloadStrategy):
         target = self.destination_dir / download.suggested_filename
         await download.save_as(target)
         return ExecutionResult(success=True, strategy=self.name, downloaded_files=[target])
-
