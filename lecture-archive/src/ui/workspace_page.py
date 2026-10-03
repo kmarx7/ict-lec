@@ -1,4 +1,7 @@
-from PySide6.QtCore import Qt, Signal
+from pathlib import Path
+
+from PySide6.QtCore import Qt, QUrl, Signal
+from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QFileDialog,
@@ -17,6 +20,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from src.app.config import AppConfig
 from src.ui.components import PageHeader, Panel
 
 
@@ -28,6 +32,8 @@ class WorkspacePage(QWidget):
     def __init__(self, repository=None) -> None:
         super().__init__()
         self.repository = repository
+        self.archive_root = AppConfig().download_dir
+        self.recording_rows = []
         layout = QVBoxLayout(self)
         layout.setContentsMargins(30, 24, 30, 28)
         layout.setSpacing(18)
@@ -83,6 +89,7 @@ class WorkspacePage(QWidget):
         self.table.setHorizontalHeaderLabels(["Title", "Status", "Created"])
         self.table.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self.table.itemSelectionChanged.connect(self._update_open_button)
         self.table.verticalHeader().hide()
         self.table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
         self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
@@ -92,6 +99,17 @@ class WorkspacePage(QWidget):
         self.empty_library.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
         library.content.addWidget(self.empty_library)
         library.content.addWidget(self.table, 1)
+        folder_actions = QHBoxLayout()
+        self.open_selected_button = QPushButton("Open selected in Finder")
+        self.open_selected_button.setEnabled(False)
+        self.open_selected_button.clicked.connect(self.open_selected_in_finder)
+        self.open_archive_button = QPushButton("Open archive folder")
+        self.open_archive_button.setObjectName("quietButton")
+        self.open_archive_button.clicked.connect(self.open_archive_folder)
+        folder_actions.addWidget(self.open_selected_button)
+        folder_actions.addWidget(self.open_archive_button)
+        folder_actions.addStretch()
+        library.content.addLayout(folder_actions)
         library.content.addStretch()
         split.addWidget(activity)
         split.addWidget(library)
@@ -154,13 +172,36 @@ class WorkspacePage(QWidget):
         self.feedback.setText(f"{progress.filename} · {progress.downloaded_bytes / (1024 * 1024):.1f} MB · {speed:.1f} MB/s")
 
     def refresh_library(self) -> None:
-        rows = self.repository.list_recordings()[:8] if self.repository else []
-        self.table.setRowCount(len(rows))
-        self.empty_library.setVisible(not rows)
-        self.table.setVisible(bool(rows))
-        for row_index, row in enumerate(rows):
+        self.recording_rows = list(self.repository.list_recordings()[:8]) if self.repository else []
+        self.table.setRowCount(len(self.recording_rows))
+        self.empty_library.setVisible(not self.recording_rows)
+        self.table.setVisible(bool(self.recording_rows))
+        self.open_selected_button.setEnabled(False)
+        for row_index, row in enumerate(self.recording_rows):
             for column, key in enumerate(("title", "status", "created_at")):
                 self.table.setItem(row_index, column, QTableWidgetItem(str(row[key] or "")))
+
+    def open_selected_in_finder(self) -> None:
+        row_index = self.table.currentRow()
+        if row_index < 0 or row_index >= len(self.recording_rows):
+            self.show_error("Select an archived recording first.")
+            return
+        directory = Path(self.recording_rows[row_index]["local_directory"] or "")
+        if not directory.is_dir():
+            self.show_error("The selected archive folder no longer exists on this Mac.")
+            return
+        self._open_path(directory)
+
+    def open_archive_folder(self) -> None:
+        self.archive_root.mkdir(parents=True, exist_ok=True)
+        self._open_path(self.archive_root)
+
+    def _open_path(self, path: Path) -> None:
+        if not QDesktopServices.openUrl(QUrl.fromLocalFile(str(path.resolve()))):
+            self.show_error("Finder could not open this folder.")
+
+    def _update_open_button(self) -> None:
+        self.open_selected_button.setEnabled(self.table.currentRow() >= 0)
 
     def _set_idle_controls(self) -> None:
         self.analyze.setEnabled(True)
