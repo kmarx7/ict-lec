@@ -54,7 +54,11 @@ class ApplicationCoordinator:
         destination = archive_directory(self.config.download_dir, title, date.today())
         observer = BasicObserver(page_probe=self._probe_page)
         strategies = {
-            "zoom_browser": ZoomBrowserDownloadStrategy(self._open_page, destination),
+            "zoom_browser": ZoomBrowserDownloadStrategy(
+                self._open_page,
+                destination,
+                self.window.workspace.update_progress,
+            ),
         }
         self.controller = LoopController(
             observer,

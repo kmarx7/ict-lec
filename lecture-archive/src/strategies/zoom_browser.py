@@ -1,7 +1,9 @@
+import time
 from pathlib import Path
 
 from src.agent.context import AgentContext
 from src.agent.models import ExecutionResult
+from src.download.progress import DownloadProgress
 from src.sources.zoom.access import SELECTORS, first_visible
 from src.strategies.base import DownloadStrategy
 
@@ -9,8 +11,10 @@ from src.strategies.base import DownloadStrategy
 class ZoomBrowserDownloadStrategy(DownloadStrategy):
     name = "zoom_browser"
 
-    def __init__(self, page_provider, destination_dir: Path) -> None:
-        self.page_provider, self.destination_dir = page_provider, destination_dir
+    def __init__(self, page_provider, destination_dir: Path, progress=None) -> None:
+        self.page_provider = page_provider
+        self.destination_dir = destination_dir
+        self.progress = progress
 
     async def can_handle(self, context: AgentContext) -> bool:
         return context.download_allowed is not False and context.browser_session_available
@@ -25,5 +29,12 @@ class ZoomBrowserDownloadStrategy(DownloadStrategy):
             await button.click()
         download = await info.value
         target = self.destination_dir / download.suggested_filename
+        started_at = time.monotonic()
+        if self.progress:
+            self.progress(DownloadProgress(target.name, 0, None, 0, None, self.name))
         await download.save_as(target)
+        if self.progress:
+            size = target.stat().st_size
+            elapsed = max(time.monotonic() - started_at, 0.001)
+            self.progress(DownloadProgress(target.name, size, size, size / elapsed, 0, self.name))
         return ExecutionResult(success=True, strategy=self.name, downloaded_files=[target])
