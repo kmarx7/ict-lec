@@ -32,7 +32,10 @@ class RuleBasedPlanner:
             return ActionPlan(action=ActionType.RETRY, strategy_name=context.current_strategy, reason=f"다시 시도할 수 있는 오류입니다: {context.last_error_code}")
         return ActionPlan(
             action=ActionType.STOP,
-            reason="이 녹화 페이지에서 허용된 다운로드 버튼을 찾을 수 없습니다.",
+            reason=(
+                "녹화는 재생할 수 있지만 호스트가 공식 다운로드 버튼을 제공하지 않았습니다. "
+                "다운로드가 필요하면 녹화 호스트에게 허용을 요청해 주세요."
+            ),
             stop=True,
         )
 

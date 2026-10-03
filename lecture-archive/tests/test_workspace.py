@@ -39,6 +39,15 @@ def test_busy_and_complete_states(app):
     assert page.analyze.isEnabled() and not page.cancel_button.isEnabled()
 
 
+def test_error_clears_pending_download_metrics(app):
+    page = WorkspacePage()
+    page.begin()
+    page.show_error("다운로드할 수 없습니다.")
+    assert page.download_file.text() == "파일  —"
+    assert page.download_eta.text() == "남은 시간  —"
+    assert page.progress.value() == 0
+
+
 def test_progress_details_are_visible(app):
     page = WorkspacePage()
     page.update_progress(
