@@ -4,12 +4,13 @@ import sys
 from datetime import date
 from pathlib import Path
 
-from PySide6.QtWidgets import QApplication, QDialog, QMessageBox
+from PySide6.QtWidgets import QApplication, QDialog
 from qasync import QEventLoop, asyncSlot
 
 from src.agent.context import AgentContext
 from src.agent.controller import LoopController
 from src.agent.evaluator import GoalEvaluator
+from src.agent.events import AgentEvent, EventType
 from src.agent.executor import Executor
 from src.agent.observer import BasicObserver
 from src.agent.planner import RuleBasedPlanner
@@ -31,10 +32,12 @@ class ApplicationCoordinator:
     def __init__(self, window: MainWindow, config: AppConfig, repository: RecordingRepository) -> None:
         self.window, self.config, self.repository = window, config, repository
         self.controller: LoopController | None = None
+        self.active_context: AgentContext | None = None
         self.browser = ZoomBrowserSession()
         self.page_parser = ZoomPageParser()
-        window.source_page.analyze_requested.connect(self.analyze)
-        window.source_page.import_requested.connect(self.import_file)
+        window.workspace.analyze_requested.connect(self.analyze)
+        window.workspace.import_requested.connect(self.import_file)
+        window.workspace.cancel_requested.connect(self.cancel)
 
     @asyncSlot(str)
     async def analyze(self, url: str) -> None:
@@ -46,8 +49,18 @@ class ApplicationCoordinator:
         context = AgentContext(original_url="local://import", source_type="local", local_import_path=Path(path))
         await self._run(context)
 
+    def cancel(self) -> None:
+        if self.active_context:
+            self.active_context.cancelled = True
+            self.window.workspace.show_error("Cancellation requested. Stopping safely…")
+
     async def _run(self, context: AgentContext) -> None:
-        self.window.navigation.setCurrentRow(1)
+        self.active_context = context
+        self.window.workspace.begin(
+            "Importing and verifying local file…"
+            if context.source_type == "local"
+            else "Opening the authorized Zoom recording page…"
+        )
         title = context.local_import_path.stem if context.local_import_path else "Zoom_Recording"
         destination = archive_directory(self.config.download_dir, title, date.today())
         observer = BasicObserver(page_probe=None if context.source_type == "local" else self._probe_page)
@@ -61,15 +74,36 @@ class ApplicationCoordinator:
             Executor(strategies),
             GoalEvaluator(),
             max_loops=self.config.max_loops,
-            event_sink=self.window.activity_page.add_event,
+            event_sink=self.window.workspace.add_event,
             human_handler=self._handle_human_action,
         )
-        result = await self.controller.run(context)
-        if result.goal_reached:
-            self._archive(result, destination, title)
-            self.window.library_page.refresh()
-        else:
-            QMessageBox.information(self.window, "Acquisition stopped", result.terminal_reason or result.last_error_message or "No authorized download path is available.")
+        try:
+            result = await self.controller.run(context)
+            if result.goal_reached:
+                self._archive(result, destination, title)
+                self.window.workspace.refresh_library()
+                self.window.workspace.finish("Verified and archived successfully.")
+            else:
+                reason = (
+                    result.terminal_reason
+                    or result.last_error_message
+                    or "No authorized download path is available."
+                )
+                self.window.workspace.show_error(reason)
+        except Exception as exc:
+            error_name = type(exc).__name__
+            self.window.workspace.add_event(
+                AgentEvent(
+                    event_type=EventType.ACTION_FAILED,
+                    message=f"The acquisition could not start ({error_name}).",
+                    error_code="UNKNOWN_ERROR",
+                )
+            )
+            self.window.workspace.show_error(
+                f"Could not continue because {error_name} occurred. Check Playwright/browser setup."
+            )
+        finally:
+            self.active_context = None
 
     async def _open_page(self, url: str):
         return await self.browser.open(url, headed=True)

@@ -30,9 +30,12 @@ class RuleBasedPlanner:
         attempts = context.retry_counts.get(context.current_strategy or "", 0)
         if rule.retryable and attempts < rule.max_attempts and context.current_strategy:
             return ActionPlan(action=ActionType.RETRY, strategy_name=context.current_strategy, reason=f"Retryable error: {context.last_error_code}")
-        return self._stop(ErrorCode.UNKNOWN_ERROR, "No authorized acquisition strategy is available")
+        return ActionPlan(
+            action=ActionType.STOP,
+            reason="No authorized download action was found on this recording page.",
+            stop=True,
+        )
 
     @staticmethod
     def _stop(code: ErrorCode, reason: str) -> ActionPlan:
         return ActionPlan(action=ActionType.STOP, reason=f"{code.value}: {reason}", stop=True)
-

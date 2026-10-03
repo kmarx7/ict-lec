@@ -96,6 +96,7 @@ QPushButton {
 }
 QPushButton:hover { background: #F2F3F5; border-color: #ADB2BC; }
 QPushButton:pressed { background: #E8EAEF; }
+QPushButton:disabled { color: #A6AAB2; background: transparent; border-color: transparent; }
 QPushButton#primaryButton {
     background: #1F6FEB;
     color: white;
@@ -120,6 +121,10 @@ QLabel#statusBadge {
     font-size: 11px;
     font-weight: 650;
 }
+QLabel#statusBadge[state="running"] { color: #1F5FAE; background: #EAF2FE; border-color: #C9DDF9; }
+QLabel#statusBadge[state="error"] { color: #A33A2B; background: #FCEDEA; border-color: #F2CFC7; }
+QLabel#statusBadge[state="success"] { color: #17653A; background: #E8F6EE; border-color: #CBE9D7; }
+QSplitter::handle { background: transparent; width: 12px; }
 QListWidget#timeline {
     background: #FFFFFF;
     border: 1px solid #E0E2E7;
@@ -165,4 +170,3 @@ QScrollBar:vertical { width: 10px; background: transparent; margin: 3px; }
 QScrollBar::handle:vertical { background: #C5C8CE; border-radius: 4px; min-height: 28px; }
 QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical { height: 0; }
 """
-

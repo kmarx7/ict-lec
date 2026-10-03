@@ -24,6 +24,9 @@ open "dist/Lecture Archive.app"
 The resulting bundle is unsigned. Distribution to other Macs additionally requires an Apple
 Developer ID, hardened-runtime signing, and notarization.
 
+The packaged app uses Playwright's standard per-user browser cache. Run
+`uv run playwright install chromium` once on a new Mac before analyzing Zoom links.
+
 The default archive is `~/Downloads/LectureArchive`. OAuth credentials, passcodes, cookies,
 authorization headers, and signed URLs are never written to metadata or logs.
 
